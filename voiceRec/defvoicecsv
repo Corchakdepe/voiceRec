@@ -1,0 +1,62 @@
+import librosa
+import numpy as np
+import os
+import pandas as pd
+
+# Path to the folder containing your audio files
+audio_folder = 'Audios'
+
+# Function to extract the mean pitch (F0)
+def extract_mean_f0(y, sr):
+    pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
+    return np.mean(pitches[pitches > 0])  # Return mean pitch, ignoring zero values
+
+# Function to extract spectral centroid
+def extract_spectral_centroid(y, sr):
+    return np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
+
+# Function to extract zero crossing rate
+def extract_zero_crossing_rate(y):
+    return np.mean(librosa.feature.zero_crossing_rate(y=y))
+
+# Function to extract MFCCs
+def extract_mfccs(y, sr):
+    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+    return np.mean(mfccs, axis=1)  # Mean of MFCCs
+
+# Function to extract all audio features
+def extract_audio_features(file_path):
+    y, sr = librosa.load(file_path, sr=16000, mono=True)
+    f0_mean = extract_mean_f0(y, sr)
+    spectral_centroid = extract_spectral_centroid(y, sr)
+    zero_crossing_rate = extract_zero_crossing_rate(y)
+    mfccs = extract_mfccs(y, sr)
+    return f0_mean, spectral_centroid, zero_crossing_rate, mfccs
+
+# List to store the extracted features for each audio file
+audio_parameters = []
+
+# Iterate through audio files and extract features
+for file_name in os.listdir(audio_folder):
+    if file_name.endswith(('.wav', '.mp3')):
+        file_path = os.path.join(audio_folder, file_name)
+        try:
+            f0_mean, spectral_centroid, zero_crossing_rate, mfccs = extract_audio_features(file_path)
+            audio_parameters.append({
+                'File Name': file_name,
+                'Mean F0 (Hz)': f0_mean,
+                'Spectral Centroid': spectral_centroid,
+                'Zero Crossing Rate': zero_crossing_rate,
+                'MFCCs': mfccs.tolist()  # Convert numpy array to list
+            })
+        except Exception as e:
+            print(f"Error processing {file_name}: {e}")
+
+# Convert the list to a DataFrame
+audio_df = pd.DataFrame(audio_parameters)
+
+# Save the DataFrame to a CSV file
+output_csv_path = os.path.join(audio_folder, 'audio_parameters_librosa.csv')
+audio_df.to_csv(output_csv_path, index=False)
+
+print(f"Audio parameters saved to {output_csv_path}")
